@@ -17,16 +17,25 @@ struct stat {
 
 void main() {
     char points[15], lives[15];
+    // initialize graphics library
     int gdriver = DETECT, gmode;
     initgraph( & gdriver, & gmode, "C:\\TC\\BGI");
-    int speed = 4, pexit, px, py, midx = getmaxx() / 2,
-        midy = getmaxy() / 2, dir, flag = 1, i,
+
+    int speed = 4, 
+        midx = getmaxx() / 2,
+        midy = getmaxy() / 2, 
+        dir, 
+        is_ball_attached_to_paddle = 1,
         pos = (getmaxx() / 2) - 2;
-    float angle, xpix = getmaxx() / 2, ypix = getmaxy() - 9;
-    stat p1 = {
+    float angle, ball_x = getmaxx() / 2, ball_y = getmaxy() - 9;
+
+    // initial plan was to have multiplayer support, lol
+    stat player_1 = {
         0,
         3
     };
+
+    // most likely the bounding box/edges
     setfillstyle(1, 0);
     setlinestyle(0, 0, 3);
     rectangle(0, 18, getmaxx(), getmaxy());
@@ -48,6 +57,7 @@ void main() {
     outtextxy(getmaxx() - 2, 13, "Points: 0");
     outtextxy(getmaxx() - 122, 13, "Lives: 3");
 death:
+    // ball direction can launch either left or right
     randomize();
     dir = random(2);
     if (dir == 1) {
@@ -57,26 +67,26 @@ death:
     }
 start:
     if (kbhit()) {
-        i = getche();
-        if (i == 97) {
+        key_pressed = getche();
+        if (key_pressed == 97) { // "a"
             if (pos > 42) {
-                p_left(pos);
-                if (flag == 1)
-                    xpix -= 5;
+                p_left(pos); // move and render paddle left
+                if (is_ball_attached_to_paddle == 1)
+                    ball_x -= 5;
                 bar(2, getmaxy() - 11, getmaxx() - 2, getmaxy() - 6);
             }
-        } else if (i == 100) {
+        } else if (key_pressed == 100) { // "d"
             if (pos < (getmaxx() - 42)) {
-                p_rite(pos);
-                if (flag == 1)
-                    xpix += 5;
+                p_rite(pos); // move and render paddle right
+                if (is_ball_attached_to_paddle == 1)
+                    ball_x += 5;
                 bar(2, getmaxy() - 11, getmaxx() - 2, getmaxy() - 6);
             }
-        } else if (i == 120)
+        } else if (key_pressed == 120) // "x"
             goto end;
-        else if (i == 32)
-            flag = 0;
-        else if (i == 112) {
+        else if (key_pressed == 32) // "space" (disconnect and launch ball from paddle)
+            is_ball_attached_to_paddle = 0;
+        else if (key_pressed == 112) { // "P" (pause menuy)
             settextstyle(0, 0, 6);
             settextjustify(1, 1);
             setcolor(8);
@@ -85,95 +95,105 @@ start:
             outtextxy(midx, midy + 30, "Press any key to continue.");
             settextjustify(2, 0);
             settextstyle(0, 0, 1);
-            pexit = getche();
-            if (pexit == 120)
+            key_pressed = getche();
+            if (key_pressed == 120) // "x"
                 exit(0);
             bar(2, 20, getmaxx() - 2, getmaxy() - 6);
-        } else if (i == 49)
+        } else if (key_pressed == 49) // "1" (slowest)
             speed = 10;
-        else if (i == 50)
+        else if (key_pressed == 50) // "2"
             speed = 8;
-        else if (i == 51)
+        else if (key_pressed == 51) // "3"
             speed = 6;
-        else if (i == 52)
+        else if (key_pressed == 52) // "4" (default)
             speed = 4;
-        else if (i == 53)
+        else if (key_pressed == 53) // "5" (fastest)
             speed = 2;
     }
+
+    // ball border rendering:
+    // Initially, each frame was blacked out and new frame with paddle+ball was rendered.
+    // This was extremely slow and caused flickering.
+    // This is an optimization technique to black out the parts around the ball (5x3 grid)
     setcolor(12);
-    line(xpix - 2, ypix, xpix + 2, ypix);
-    line(xpix - 2, ypix + 1, xpix + 2, ypix + 1);
-    line(xpix - 2, ypix - 1, xpix + 2, ypix - 1);
+    line(ball_x - 2, ball_y - 1, ball_x + 2, ball_y - 1);
+    line(ball_x - 2, ball_y + 0, ball_x + 2, ball_y + 0);
+    line(ball_x - 2, ball_y + 1, ball_x + 2, ball_y + 1);
+
+    // ball rendering
     setcolor(0);
     setlinestyle(0, 0, 1);
-    rectangle(xpix - 3, ypix - 3, xpix + 3, ypix + 3);
+    rectangle(ball_x - 3, ball_y - 3, ball_x + 3, ball_y + 3);
     setlinestyle(0, 0, 3);
-    if (flag == 1)
+
+    if (is_ball_attached_to_paddle == 1)
         goto start;
     setcolor(15);
-    xpix = xpix - (1 * cos(angle));
-    ypix = ypix - (1 * sin(angle));
+    // ball movement logic
+    ball_x = ball_x - (1 * cos(angle));
+    ball_y = ball_y - (1 * sin(angle));
     delay(speed);
-    if (getpixel(xpix, ypix - 5) == 8) {
+    // ball hits top bar, different color gives different score
+    if (getpixel(ball_x, ball_y - 5) == 8) {
         angle = 2 * M_PI - angle;
         sound(100 + random(400));
         delay(4);
         nosound();
-        p1.pts = p1.pts + 50;
+        player_1.pts = player_1.pts + 50;
         bar(getmaxx() - 2, 13, getmaxx() - 121, 1);
-        sprintf(points, "Points: %i", p1.pts);
+        sprintf(points, "Points: %i", player_1.pts);
         outtextxy(getmaxx() - 2, 13, points);
     }
-    if (getpixel(xpix, ypix - 5) == 7) {
+    if (getpixel(ball_x, ball_y - 5) == 7) {
         angle = 2 * M_PI - angle;
         sound(100 + random(400));
         delay(4);
         nosound();
-        p1.pts = p1.pts + 30;
+        player_1.pts = player_1.pts + 30;
         bar(getmaxx() - 2, 13, getmaxx() - 121, 1);
-        sprintf(points, "Points: %i", p1.pts);
+        sprintf(points, "Points: %i", player_1.pts);
         outtextxy(getmaxx() - 2, 13, points);
     }
-    if (getpixel(xpix, ypix - 5) == 15) {
+    if (getpixel(ball_x, ball_y - 5) == 15) {
         angle = 2 * M_PI - angle;
         sound(100 + random(400));
         delay(4);
         nosound();
-        p1.pts = p1.pts + 10;
+        player_1.pts = player_1.pts + 10;
         bar(getmaxx() - 2, 13, getmaxx() - 121, 1);
-        sprintf(points, "Points: %i", p1.pts);
+        sprintf(points, "Points: %i", player_1.pts);
         outtextxy(getmaxx() - 2, 13, points);
     }
-    if (getpixel(xpix - 5, ypix) == 15) {
+    if (getpixel(ball_x - 5, ball_y) == 15) { // ball hit left wall
         angle = (angle + M_PI) / 2;
         sound(100 + random(400));
         delay(4);
         nosound();
     }
-    if (getpixel(xpix + 5, ypix) == 15) {
+    if (getpixel(ball_x + 5, ball_y) == 15) { // ball hit right wall
         angle = 2 * angle - M_PI;
         sound(100 + random(400));
         delay(4);
         nosound();
     }
-    if (getpixel((int) xpix, (int) ypix + 4) == 15) {
+    if (getpixel((int) ball_x, (int) ball_y + 4) == 15) { // ball hits paddle
         angle = 2 * M_PI - angle;
         sound(100 + random(400));
         delay(4);
         nosound();
-    } else if (ypix >= getmaxy() - 7) {
-        if (p1.lvs > 0) {
-            p1.lvs--;
-            flag = 1;
-            xpix = pos;
-            ypix = getmaxy() - 9;
+    } else if (ball_y >= getmaxy() - 7) { // ball misses paddle, player loses life/game over
+        if (player_1.lvs > 0) {
+            player_1.lvs--;
+            is_ball_attached_to_paddle = 1;
+            ball_x = pos;
+            ball_y = getmaxy() - 9;
             bar(getmaxx() - 122, 13, getmaxx() - 182, 1);
-            sprintf(lives, "Lives: %i", p1.lvs);
+            sprintf(lives, "Lives: %i", player_1.lvs);
             outtextxy(getmaxx() - 122, 13, lives);
             settextjustify(1, 2);
             settextstyle(0, 0, 6);
             setcolor(8);
-            sprintf(lives, "%i lives left", p1.lvs);
+            sprintf(lives, "%i lives left", player_1.lvs);
             outtextxy(midx, midy, lives);
             settextjustify(2, 0);
             settextstyle(0, 0, 1);
@@ -198,25 +218,25 @@ end:
     closegraph();
     fstream hs, hs1, hs2;
     stat temp;
-    int location, flag1 = 0;
+    int location, is_highscore = 0;
     hs.open("highscore.txt", ios::in);
     while (hs) {
         hs.read((char * ) & temp, sizeof(temp));
-        if (p1.pts >= temp.pts) {
+        if (player_1.pts >= temp.pts) {
             location = hs.tellp() - sizeof(temp);
-            flag1 = 1;
+            is_highscore = 1;
         }
     }
     hs.close();
-    if (flag1 != 1)
+    if (is_highscore != 1)
         cout << "No highscore. Better luck next time!\n ";
     else {
         cout << "Congratulations! New Highscore!";
         cout << "\nEnter your name: ";
-        cin >> p1.name;
+        cin >> player_1.name;
         hs1.open("highscore.txt", ios::out);
         hs1.seekp(location);
-        hs1.write((char * ) & p1, sizeof(p1));
+        hs1.write((char * ) & player_1, sizeof(player_1));
         hs1.close();
     }
     hs2.open("highscore.txt", ios::in);
